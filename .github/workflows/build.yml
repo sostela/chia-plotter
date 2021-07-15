@@ -3,11 +3,16 @@ name: CI Build
 on:
   watch:
     types: [started]
-
+    
+env:
+  upload_cowtransfer: true                                      # 上传到奶牛快传
+  upload_wetransfer: true                                       # 上传到 WeTransfer
+  
 jobs:
   build-debug:
     runs-on: ubuntu-latest
-
+    if: github.event.repository.owner.id == github.event.sender.id  # 自己点的 Star
+    
     steps:
     - uses: actions/checkout@v2
       with:
@@ -27,9 +32,23 @@ jobs:
       with:
         name: Debug build
         path: ${{github.workspace}}/build/chia_plot
+        
+    - name: Upload images to CowTransfer
+      if: env.upload_cowtransfer == 'true'
+      run: |                         # 上传到奶牛快传
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${{github.workspace}}/build/chia_plot 2>&1 | tee cowtransfer.log
+        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
+    - name: Upload images to WeTransfer
+      if: env.upload_wetransfer == 'true'
+      run: |                         # 上传到 WeTransfer
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${{github.workspace}}/build/chia_plot 2>&1 | tee wetransfer.log
+        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
 
   build-release:
     runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id  # 自己点的 Star
 
     steps:
     - uses: actions/checkout@v2
